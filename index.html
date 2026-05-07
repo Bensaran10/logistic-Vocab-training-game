@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Logistics Communication Trainer</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Thai to English to Chinese</p>
+        <h1>Logistics Communication Trainer</h1>
+      </div>
+      <div class="sync-panel">
+        <label for="endpointInput">Apps Script URL</label>
+        <div class="inline-control">
+          <input id="endpointInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+          <button id="saveEndpointBtn" class="secondary">Save</button>
+        </div>
+      </div>
+    </header>
+
+    <nav class="mode-tabs" aria-label="Main sections">
+      <button class="tab active" data-view="add">Add Content</button>
+      <button class="tab" data-view="practice">Practice</button>
+      <button class="tab" data-view="summary">Assessment</button>
+      <a class="sheet-link" href="https://docs.google.com/spreadsheets/d/1fnNj872m_CM6oi-d-v7rqLHofSh6-NDUQuMiMr9kDvc/edit" target="_blank" rel="noreferrer">Review Sheet</a>
+    </nav>
+
+    <main>
+      <section id="addView" class="view active">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Raw input first</p>
+            <h2>Add workplace content</h2>
+          </div>
+          <p>New Thai content is saved to <strong>Raw_Input</strong>. AI translations and questions stay in review tabs until approved.</p>
+        </div>
+
+        <form id="contentForm" class="form-grid">
+          <label>
+            Thai input
+            <textarea id="thaiInput" required rows="4" placeholder="เช่น ของยังอยู่ที่ศุลกากร"></textarea>
+          </label>
+          <label>
+            Input type
+            <select id="inputType" required>
+              <option value="vocab">Vocabulary</option>
+              <option value="phrase">Phrase</option>
+              <option value="sentence" selected>Sentence</option>
+              <option value="email">Email line</option>
+              <option value="scenario">Scenario</option>
+            </select>
+          </label>
+          <label class="wide">
+            Context note
+            <textarea id="contextNote" required rows="3" placeholder="ใช้ตอบลูกค้าเมื่อสินค้ายังเคลียร์ศุลกากรไม่เสร็จ"></textarea>
+          </label>
+          <label>
+            Category hint
+            <select id="categoryHint">
+              <option value="">Auto</option>
+              <option value="daily_communication">Daily communication</option>
+              <option value="warehouse">Warehouse</option>
+              <option value="delivery">Delivery</option>
+              <option value="customs">Customs</option>
+              <option value="documents">Documents</option>
+              <option value="customer_service">Customer service</option>
+              <option value="email">Email</option>
+              <option value="phone_call">Phone call</option>
+              <option value="problem_solving">Problem solving</option>
+              <option value="business_communication">Business communication</option>
+            </select>
+          </label>
+          <label>
+            Level hint
+            <select id="levelHint">
+              <option value="">Auto</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+          <button type="submit" class="primary wide">Save to Raw_Input</button>
+        </form>
+
+        <div id="addStatus" class="status-line" role="status"></div>
+      </section>
+
+      <section id="practiceView" class="view">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Approved questions only</p>
+            <h2>Practice modes</h2>
+          </div>
+          <button id="reloadQuestionsBtn" class="secondary">Reload approved questions</button>
+        </div>
+
+        <div class="mode-picker" id="modePicker"></div>
+        <div class="practice-layout">
+          <aside class="question-list" id="questionList"></aside>
+          <section class="exercise-panel" id="exercisePanel"></section>
+        </div>
+      </section>
+
+      <section id="summaryView" class="view">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">After game</p>
+            <h2>Post-game assessment</h2>
+          </div>
+          <button id="retryBtn" class="secondary">Retry Lesson</button>
+        </div>
+        <div id="summaryPanel" class="summary-grid"></div>
+      </section>
+    </main>
+
+    <template id="choiceTemplate">
+      <button class="choice"></button>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
