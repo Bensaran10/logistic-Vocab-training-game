@@ -18,6 +18,7 @@
           <input id="endpointInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
           <button id="saveEndpointBtn" class="secondary">Save</button>
         </div>
+        <p class="helper-light">Paste the Google Apps Script web app URL here once. It lets this page save to and read from Google Sheet.</p>
       </div>
     </header>
 
@@ -38,10 +39,16 @@
           <p>New Thai content is saved to <strong>Raw_Input</strong>. AI translations and questions stay in review tabs until approved.</p>
         </div>
 
+        <div class="description-band">
+          <strong>ใช้หน้านี้เมื่อเจอคำหรือประโยคจากงานจริง</strong>
+          <p>ใส่ภาษาไทยพร้อมบริบทการใช้งานก่อน ระบบจะเก็บเป็นข้อมูลดิบใน Google Sheet แล้วรอบประมวลผลจะนำไปแปลเป็น English, Chinese, pinyin และสร้างคำถามฝึกให้ภายหลัง</p>
+        </div>
+
         <form id="contentForm" class="form-grid">
           <label>
             Thai input
             <textarea id="thaiInput" required rows="4" placeholder="เช่น ของยังอยู่ที่ศุลกากร"></textarea>
+            <span class="field-help">ใส่คำ วลี ประโยค อีเมล หรือสถานการณ์เป็นภาษาไทย เช่น “ปล่อยของแล้ว”</span>
           </label>
           <label>
             Input type
@@ -52,10 +59,12 @@
               <option value="email">Email line</option>
               <option value="scenario">Scenario</option>
             </select>
+            <span class="field-help">เลือกประเภทข้อมูล เพื่อให้ AI สร้างแบบฝึกได้เหมาะกับเนื้อหา</span>
           </label>
           <label class="wide">
             Context note
             <textarea id="contextNote" required rows="3" placeholder="ใช้ตอบลูกค้าเมื่อสินค้ายังเคลียร์ศุลกากรไม่เสร็จ"></textarea>
+            <span class="field-help">จำเป็นมากสำหรับงาน logistics เพราะประโยคไทยสั้นๆ อาจแปลได้หลายความหมาย</span>
           </label>
           <label>
             Category hint
@@ -72,6 +81,7 @@
               <option value="problem_solving">Problem solving</option>
               <option value="business_communication">Business communication</option>
             </select>
+            <span class="field-help">เลือกหมวดงานถ้ารู้ เช่น customs, warehouse, delivery หรือปล่อย Auto ได้</span>
           </label>
           <label>
             Level hint
@@ -81,6 +91,7 @@
               <option value="medium">Medium</option>
               <option value="hard">Hard</option>
             </select>
+            <span class="field-help">เลือกระดับความยาก หรือปล่อย Auto ให้ระบบจัดระดับเอง</span>
           </label>
           <button type="submit" class="primary wide">Save to Raw_Input</button>
         </form>
@@ -97,6 +108,11 @@
           <button id="reloadQuestionsBtn" class="secondary">Reload approved questions</button>
         </div>
 
+        <div class="description-band">
+          <strong>ใช้หน้านี้เพื่อฝึกจากคำถามที่ผ่านการอนุมัติแล้ว</strong>
+          <p>เลือกโหมดด้านล่างแล้วระบบจะสุ่มคำถามให้ทุกหมวด ใช้ปุ่ม Next Random Question เพื่อเปลี่ยนข้อ โหมด Vocabulary จะแยกเป็นคำศัพท์จีน/คำศัพท์อังกฤษพร้อมปุ่มฟังเสียง ด้าน Listening สามารถปรับความเร็วเสียงได้ ส่วน Speaking ให้พูดหรือพิมพ์คำตอบแล้วตรวจความหมายจาก keyword</p>
+        </div>
+
         <div class="mode-picker" id="modePicker"></div>
         <div class="practice-layout">
           <aside class="question-list" id="questionList"></aside>
@@ -111,6 +127,10 @@
             <h2>Post-game assessment</h2>
           </div>
           <button id="retryBtn" class="secondary">Retry Lesson</button>
+        </div>
+        <div class="description-band">
+          <strong>หน้านี้สรุปผลหลังฝึก</strong>
+          <p>ดูคะแนน ความแม่นยำ ดาวที่ได้ จุดอ่อนของแต่ละทักษะ และคำแนะนำว่าควรฝึกโหมดไหนต่อ ข้อที่ตอบผิดจะถูกบันทึกไว้ใน Review_Queue</p>
         </div>
         <div id="summaryPanel" class="summary-grid"></div>
       </section>

@@ -2,9 +2,100 @@ const MODES = [
   ["vocab_quiz", "Vocabulary"],
   ["sentence_builder", "Sentence Builder"],
   ["email_practice", "Email"],
-  ["scenario_roleplay", "Scenario"],
   ["listening_practice", "Listening"],
   ["speaking_practice", "Speaking"]
+];
+
+const MODE_DESCRIPTIONS = {
+  vocab_quiz: "จำความหมายคำศัพท์ logistics",
+  sentence_builder: "เรียงประโยค English/Chinese ให้ถูก",
+  email_practice: "เขียนอีเมลหรือคำตอบสถานการณ์งานจริง",
+  listening_practice: "ฟังประโยคและตอบความเข้าใจ",
+  speaking_practice: "พูดหรือตรวจ transcript ก่อนส่ง"
+};
+
+const VOCAB_DETAILS = [
+  {
+    source_id: "seed_basic_001",
+    zh: "清关",
+    pinyin: "qīngguān",
+    en: "customs clearance",
+    th: "พิธีการศุลกากร / การเคลียร์ศุลกากร",
+    category: "customs",
+    level: "easy"
+  },
+  {
+    source_id: "seed_basic_002",
+    zh: "货物",
+    pinyin: "huòwù",
+    en: "shipment",
+    th: "สินค้า / ล็อตสินค้าที่ขนส่ง",
+    category: "delivery",
+    level: "easy"
+  },
+  {
+    source_id: "seed_basic_003",
+    zh: "发票",
+    pinyin: "fāpiào",
+    en: "invoice",
+    th: "ใบแจ้งหนี้ / invoice",
+    category: "documents",
+    level: "easy"
+  },
+  {
+    source_id: "seed_basic_004",
+    zh: "装箱单",
+    pinyin: "zhuāngxiāng dān",
+    en: "packing list",
+    th: "ใบรายการบรรจุสินค้า",
+    category: "documents",
+    level: "easy"
+  },
+  {
+    source_id: "seed_basic_005",
+    zh: "送货时间",
+    pinyin: "sònghuò shíjiān",
+    en: "delivery time",
+    th: "เวลาจัดส่ง",
+    category: "delivery",
+    level: "easy"
+  },
+  {
+    source_id: "seed_basic_006",
+    zh: "延迟",
+    pinyin: "yánchí",
+    en: "delay",
+    th: "ล่าช้า / ความล่าช้า",
+    category: "problem_solving",
+    level: "easy"
+  },
+  {
+    source_id: "seed_basic_007",
+    zh: "提单",
+    pinyin: "tídān",
+    en: "bill of lading",
+    th: "ใบตราส่งสินค้า / B/L",
+    category: "documents",
+    level: "medium"
+  },
+  {
+    source_id: "seed_basic_008",
+    zh: "司机",
+    pinyin: "sījī",
+    en: "driver",
+    th: "คนขับรถ",
+    category: "delivery",
+    level: "easy"
+  },
+  {
+    source_id: "seed_basic_009",
+    zh: "缺少文件",
+    pinyin: "quēshǎo wénjiàn",
+    en: "missing documents",
+    th: "เอกสารไม่ครบ",
+    category: "documents",
+    level: "easy"
+  }
 ];
 
 const SHEET_ID = "1fnNj872m_CM6oi-d-v7rqLHofSh6-NDUQuMiMr9kDvc";
@@ -61,6 +152,7 @@ const state = {
   mode: "vocab_quiz",
   questions: [],
   current: null,
+  vocabType: "zh",
   startedAt: null,
   answers: [],
   replayCount: 0,
@@ -108,6 +200,12 @@ function localFallback(action, payload) {
   if (action === "appendGameSession" || action === "appendReviewQueue") {
     return Promise.resolve({ ok: true, local: true });
   }
+  if (action === "appendEmailSubmission") {
+    const rows = JSON.parse(localStorage.getItem("emailSubmissions") || "[]");
+    rows.push(payload);
+    localStorage.setItem("emailSubmissions", JSON.stringify(rows));
+    return Promise.resolve({ ok: true, local: true });
+  }
   return Promise.resolve({ ok: true });
 }
 
@@ -127,6 +225,90 @@ function normalize(value) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function shuffle(items) {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function approvedVocabItems() {
+  const approvedSourceIds = new Set(
+    state.questions
+      .filter((question) => question.mode === "vocab_quiz")
+      .map((question) => question.source_id)
+  );
+  const matched = VOCAB_DETAILS.filter((item) => approvedSourceIds.has(item.source_id));
+  return matched.length ? matched : (state.endpoint ? [] : VOCAB_DETAILS);
+}
+
+function makeVocabQuestion(item, type) {
+  const isChinese = type === "zh";
+  const answer = isChinese ? `${item.th} / ${item.en}` : `${item.th} / ${item.zh}`;
+  const distractors = shuffle(approvedVocabItems().filter((candidate) => candidate.source_id !== item.source_id))
+    .slice(0, 3)
+    .map((candidate) => isChinese ? `${candidate.th} / ${candidate.en}` : `${candidate.th} / ${candidate.zh}`);
+
+  return {
+    question_id: `random_${type}_${item.source_id}_${Date.now()}`,
+    source_id: item.source_id,
+    mode: "vocab_quiz",
+    prompt: isChinese ? "คำศัพท์จีนนี้หมายความว่าอะไร?" : "คำศัพท์อังกฤษนี้หมายความว่าอะไร?",
+    choices: shuffle([answer, ...distractors]).join("|"),
+    answer,
+    explanation: isChinese
+      ? `${item.zh} (${item.pinyin}) แปลว่า ${item.th} หรือ ${item.en}`
+      : `${item.en} แปลว่า ${item.th} ภาษาจีนคือ ${item.zh} (${item.pinyin})`,
+    audio_script: isChinese ? item.zh : item.en,
+    speaking_prompt: "",
+    keywords: `${item.zh}, ${item.pinyin}, ${item.en}, ${item.th}`,
+    language: isChinese ? "zh-th-en" : "en-th-zh",
+    category: item.category,
+    level: item.level,
+    vocab_display: isChinese ? item.zh : item.en,
+    vocab_pinyin: item.pinyin,
+    vocab_audio: isChinese ? item.zh : item.en,
+    vocab_type: type
+  };
+}
+
+function pickRandomVocabQuestion() {
+  const items = approvedVocabItems();
+  if (!items.length) return null;
+  const item = shuffle(items)[0];
+  state.current = makeVocabQuestion(item, state.vocabType);
+  state.startedAt ||= Date.now();
+  state.replayCount = 0;
+  return state.current;
+}
+
+function questionsForMode(mode) {
+  if (mode === "email_practice") {
+    return state.questions.filter((question) => question.mode === "email_practice" || question.mode === "scenario_roleplay");
+  }
+  return state.questions.filter((question) => question.mode === mode);
+}
+
+function pickRandomPracticeQuestion(mode = state.mode) {
+  if (mode === "vocab_quiz") return pickRandomVocabQuestion();
+
+  const questions = questionsForMode(mode);
+  if (!questions.length) {
+    state.current = null;
+    return null;
+  }
+
+  const pool = questions.length > 1 && state.current
+    ? questions.filter((question) => question.question_id !== state.current.question_id)
+    : questions;
+  state.current = shuffle(pool)[0];
+  state.startedAt ||= Date.now();
+  state.replayCount = 0;
+  return state.current;
+}
+
 function switchView(viewName) {
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === viewName));
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
@@ -139,10 +321,11 @@ function renderModes() {
   MODES.forEach(([id, label]) => {
     const button = document.createElement("button");
     button.className = `mode-button ${id === state.mode ? "active" : ""}`;
-    button.textContent = label;
+    button.innerHTML = `<span>${label}</span><small>${MODE_DESCRIPTIONS[id]}</small>`;
     button.addEventListener("click", () => {
       state.mode = id;
       state.current = null;
+      pickRandomPracticeQuestion(id);
       renderModes();
       renderQuestionList();
       renderExercise();
@@ -153,13 +336,65 @@ function renderModes() {
 
 function renderQuestionList() {
   const list = $("#questionList");
-  const questions = state.questions.filter((question) => question.mode === state.mode);
+  if (state.mode === "vocab_quiz") {
+    const items = approvedVocabItems();
+    list.innerHTML = `
+      <div class="vocab-control">
+        <p class="eyebrow">Random vocabulary</p>
+        <strong>สุ่มคำศัพท์อัตโนมัติ</strong>
+        <p>ไม่ต้องเลือกข้อจากรายการ ระบบจะสุ่มคำใหม่ทุกครั้งที่กด Next Random Word</p>
+        <div class="segmented">
+          <button class="${state.vocabType === "zh" ? "active" : ""}" data-vocab-type="zh">คำศัพท์จีน</button>
+          <button class="${state.vocabType === "en" ? "active" : ""}" data-vocab-type="en">คำศัพท์อังกฤษ</button>
+        </div>
+        <button id="nextVocabBtn" class="primary">Next Random Word</button>
+        <small>${items.length} approved vocabulary items available</small>
+      </div>
+    `;
+    list.querySelectorAll("[data-vocab-type]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.vocabType = button.dataset.vocabType;
+        pickRandomVocabQuestion();
+        renderQuestionList();
+        renderExercise();
+      });
+    });
+    $("#nextVocabBtn").addEventListener("click", () => {
+      pickRandomVocabQuestion();
+      renderExercise();
+    });
+    if (!state.current || state.current.mode !== "vocab_quiz") pickRandomVocabQuestion();
+    return;
+  }
+
+  const questions = questionsForMode(state.mode);
+  const modeLabel = MODES.find(([id]) => id === state.mode)?.[1] || "Practice";
   list.innerHTML = "";
 
   if (!questions.length) {
     list.innerHTML = `<div class="question-row"><strong>No approved questions yet</strong><small>Use the review sheet to approve generated items.</small></div>`;
     return;
   }
+
+  if (!state.current || state.current.mode !== state.mode) pickRandomPracticeQuestion(state.mode);
+
+  list.innerHTML = `
+    <div class="vocab-control">
+      <p class="eyebrow">Random ${modeLabel}</p>
+      <strong>Random question mode</strong>
+      <p>This mode picks a random approved question. Use the button below for the next random question.</p>
+      <button id="nextRandomQuestionBtn" class="primary">Next Random Question</button>
+      <small>${questions.length} approved questions available</small>
+      ${state.current ? `<small>Current: ${state.current.category || "general"} - ${state.current.level || "easy"}</small>` : ""}
+    </div>
+  `;
+
+  $("#nextRandomQuestionBtn").addEventListener("click", () => {
+    pickRandomPracticeQuestion(state.mode);
+    renderQuestionList();
+    renderExercise();
+  });
+  return;
 
   questions.forEach((question, index) => {
     const button = document.createElement("button");
@@ -187,7 +422,11 @@ function renderExercise() {
   const panel = $("#exercisePanel");
   const q = state.current;
   if (!q) {
-    panel.innerHTML = "<p>Select a practice mode to begin.</p>";
+    panel.innerHTML = `
+      <p class="eyebrow">Start here</p>
+      <h3 class="prompt">Select a practice mode to begin.</h3>
+      <p>ถ้ายังไม่มีคำถาม ให้ไปที่ Google Sheet แล้วตรวจว่าแท็บ Approved_Questions มีคำถามแล้ว จากนั้นกด Reload approved questions</p>
+    `;
     return;
   }
 
@@ -195,6 +434,18 @@ function renderExercise() {
   const isListening = q.mode === "listening_practice";
   const isSpeaking = q.mode === "speaking_practice";
   const isSentence = q.mode === "sentence_builder";
+  const isVocab = q.mode === "vocab_quiz";
+  const isEmailWriting = state.mode === "email_practice";
+
+  if (isVocab) {
+    renderVocabExercise(q);
+    return;
+  }
+
+  if (isEmailWriting) {
+    renderEmailWritingExercise(q);
+    return;
+  }
 
   panel.innerHTML = `
     <p class="eyebrow">${q.mode.replace("_", " ")} · ${q.category || ""}</p>
@@ -204,6 +455,7 @@ function renderExercise() {
     ${isSpeaking ? renderSpeaking(q) : renderChoices(choices)}
     <div class="exercise-actions">
       ${isSpeaking || isSentence ? '<button id="submitTextBtn" class="primary">Submit Answer</button>' : ""}
+      <button id="nextPracticeQuestionBtn" class="primary">Next Random Question</button>
       <button id="finishLessonBtn" class="secondary">Finish Lesson</button>
     </div>
     <div id="feedback" class="feedback" hidden></div>
@@ -223,6 +475,112 @@ function renderExercise() {
   });
   $("#recordBtn")?.addEventListener("click", startSpeechCapture);
   $("#submitTextBtn")?.addEventListener("click", () => gradeTextAnswer());
+  $("#nextPracticeQuestionBtn")?.addEventListener("click", () => {
+    pickRandomPracticeQuestion(state.mode);
+    renderQuestionList();
+    renderExercise();
+  });
+  $("#finishLessonBtn").addEventListener("click", finishLesson);
+}
+
+function renderEmailWritingExercise(q) {
+  const panel = $("#exercisePanel");
+  panel.innerHTML = `
+    <p class="eyebrow">Email & Scenario Writing · ${q.category || ""}</p>
+    <h3 class="prompt">${q.prompt || "Write a practical reply for this logistics situation."}</h3>
+    <div class="description-band compact">
+      <strong>พิมพ์ตอบเป็นภาษาอังกฤษหรือภาษาจีน</strong>
+      <p>ระบบจะบันทึกคำตอบไว้ใน Google Sheet แท็บ Email_Submissions แล้ว AI จะตรวจความตรงประเด็น ให้คะแนน และเขียน feedback ในรอบวันจันทร์ 12:00</p>
+    </div>
+    <label>
+      Your email / reply
+      <textarea id="emailAnswer" rows="8" placeholder="Type your reply in English or Chinese..."></textarea>
+    </label>
+    <details class="hint-box">
+      <summary>Show reference answer</summary>
+      <p>${q.answer || ""}</p>
+      ${q.audio_script ? `<p>${q.audio_script}</p>` : ""}
+    </details>
+    <div class="exercise-actions">
+      <button id="submitEmailBtn" class="primary">Submit for AI Review</button>
+      <button id="nextPracticeQuestionBtn" class="secondary">Next Random Question</button>
+      <button id="finishLessonBtn" class="secondary">Finish Lesson</button>
+    </div>
+    <div id="feedback" class="feedback" hidden></div>
+  `;
+
+  $("#submitEmailBtn").addEventListener("click", () => submitEmailAnswer(q));
+  $("#nextPracticeQuestionBtn").addEventListener("click", () => {
+    pickRandomPracticeQuestion(state.mode);
+    renderQuestionList();
+    renderExercise();
+  });
+  $("#finishLessonBtn").addEventListener("click", finishLesson);
+}
+
+async function submitEmailAnswer(q) {
+  const answer = $("#emailAnswer").value.trim();
+  if (!answer) {
+    showFeedback(false, "Please type your email or reply before submitting.");
+    return;
+  }
+
+  const submission = {
+    submission_id: makeId("email"),
+    user_id: "default_user",
+    created_at: nowBangkok(),
+    question_id: q.question_id,
+    source_id: q.source_id,
+    prompt: q.prompt || "",
+    expected_answer: q.answer || "",
+    user_answer: answer,
+    language: /[\u4e00-\u9fff]/.test(answer) ? "zh" : "en",
+    category: q.category || "",
+    level: q.level || "",
+    status: "needs_ai_review",
+    ai_score: "",
+    ai_feedback: "",
+    ai_suggested_answer: "",
+    reviewed_at: ""
+  };
+
+  await api("appendEmailSubmission", submission);
+  showFeedback(true, "Saved to Email_Submissions. AI will review this answer during the Monday 12:00 scheduled run.");
+}
+
+function renderVocabExercise(q) {
+  const panel = $("#exercisePanel");
+  const choices = parseChoices(q.choices);
+  const isChinese = state.vocabType === "zh";
+  panel.innerHTML = `
+    <p class="eyebrow">Vocabulary · ${isChinese ? "Chinese word" : "English word"} · ${q.category || ""}</p>
+    <h3 class="prompt">${q.prompt}</h3>
+    <div class="vocab-card">
+      <span class="vocab-word">${q.vocab_display || q.audio_script}</span>
+      ${isChinese ? `<span class="pinyin">${q.vocab_pinyin || ""}</span>` : ""}
+      <button id="vocabSpeakBtn" class="speaker-button" title="Listen to pronunciation">Listen</button>
+    </div>
+    <p class="status-line">
+      ${isChinese ? "โจทย์คำศัพท์จีน: มี pinyin และช้อยคำตอบเป็นไทย / อังกฤษ" : "โจทย์คำศัพท์อังกฤษ: ช้อยคำตอบเป็นไทย / ภาษาจีน"}
+    </p>
+    ${renderChoices(choices)}
+    <div class="exercise-actions">
+      <button id="nextVocabInPanelBtn" class="primary">Next Random Word</button>
+      <button id="finishLessonBtn" class="secondary">Finish Lesson</button>
+    </div>
+    <div id="feedback" class="feedback" hidden></div>
+    <p id="transcript" class="transcript"><strong>Vocabulary:</strong> ${q.vocab_display || q.audio_script}${isChinese ? ` · ${q.vocab_pinyin || ""}` : ""}</p>
+  `;
+
+  panel.querySelectorAll(".choice").forEach((button) => {
+    button.addEventListener("click", () => gradeChoice(button.textContent));
+  });
+  $("#vocabSpeakBtn").addEventListener("click", () => speak(q.vocab_audio || q.audio_script, isChinese ? "zh-CN" : "en-US"));
+  $("#nextVocabInPanelBtn").addEventListener("click", () => {
+    pickRandomVocabQuestion();
+    renderQuestionList();
+    renderExercise();
+  });
   $("#finishLessonBtn").addEventListener("click", finishLesson);
 }
 
@@ -265,10 +623,10 @@ function renderSpeaking(q) {
   `;
 }
 
-function speak(text) {
+function speak(text, langOverride) {
   if (!window.speechSynthesis || !text) return;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = /[\u4e00-\u9fff]/.test(text) ? "zh-CN" : "en-US";
+  utterance.lang = langOverride || (/[\u4e00-\u9fff]/.test(text) ? "zh-CN" : "en-US");
   utterance.rate = Number($("#speedSelect")?.value || 1);
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
@@ -298,6 +656,15 @@ function gradeChoice(answer) {
   });
   recordAnswer(q, answer, correct, correct ? 100 : 0);
   showFeedback(correct, q.explanation || "");
+  const nextButton = document.createElement("button");
+  nextButton.className = "secondary";
+  nextButton.textContent = q.mode === "vocab_quiz" ? "Next Random Word" : "Next Random Question";
+  nextButton.addEventListener("click", () => {
+    pickRandomPracticeQuestion(state.mode);
+    renderQuestionList();
+    renderExercise();
+  });
+  $("#feedback").append(nextButton);
 }
 
 function gradeTextAnswer() {
@@ -311,6 +678,15 @@ function gradeTextAnswer() {
   const correct = score >= 70;
   recordAnswer(q, answer, correct, score);
   showFeedback(correct, q.explanation || `Expected: ${q.answer}`);
+  const nextButton = document.createElement("button");
+  nextButton.className = "secondary";
+  nextButton.textContent = "Next Random Question";
+  nextButton.addEventListener("click", () => {
+    pickRandomPracticeQuestion(state.mode);
+    renderQuestionList();
+    renderExercise();
+  });
+  $("#feedback").append(nextButton);
 }
 
 function recordAnswer(question, userAnswer, correct, score) {
@@ -440,12 +816,22 @@ function renderSummary(session, answers) {
   `;
 }
 
+function renderEmptySummary() {
+  $("#summaryPanel").innerHTML = `
+    <div class="summary-card wrong-list">
+      <h3>ยังไม่มีผลการฝึก</h3>
+      <p>ไปที่หน้า Practice เลือกโหมดฝึก ตอบคำถาม แล้วกด Finish Lesson เพื่อดูคะแนน สรุปจุดอ่อน และคำแนะนำสำหรับรอบต่อไป</p>
+    </div>
+  `;
+}
+
 async function loadQuestions() {
   const result = await api("listApprovedQuestions");
   state.questions = result.rows || [];
   state.current = null;
   state.answers = [];
   state.startedAt = null;
+  pickRandomPracticeQuestion(state.mode);
   renderModes();
   renderQuestionList();
   renderExercise();
@@ -494,6 +880,7 @@ function setupEvents() {
 }
 
 setupEvents();
+renderEmptySummary();
 loadQuestions().catch((error) => {
   $("#exercisePanel").innerHTML = `<p>${error.message}</p>`;
 });
